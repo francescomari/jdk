@@ -20,7 +20,6 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Invalid Java version.")
 		os.Exit(1)
 	}
-	fmt.Println("using java home " + javaHome)
 
 	if err := runProcess(javaHome, os.Args[2:]); err != nil {
 		fmt.Fprintln(os.Stderr, "Unable to start process.")
@@ -69,7 +68,7 @@ func readJavaHome(version string) (string, error) {
 }
 
 func runProcess(javaHome string, commandLine []string) error {
-	command, err := exec.LookPath(commandName(commandLine))
+	command, err := exec.LookPath(commandLine[0])
 	if err != nil {
 		return err
 	}
@@ -79,11 +78,4 @@ func runProcess(javaHome string, commandLine []string) error {
 	}
 
 	return syscall.Exec(command, commandLine, os.Environ())
-}
-
-func commandName(commandLine []string) string {
-	if len(commandLine) < 1 {
-		panic("invalid command line")
-	}
-	return commandLine[0]
 }
