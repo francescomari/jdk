@@ -6,27 +6,28 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 )
 
 func main() {
 	if len(os.Args) < 3 {
-		fmt.Fprintf(os.Stderr, "Usage: jdk [version] [command...]\n")
+		fmt.Fprintln(os.Stderr, "Usage: jdk [version] [command...]")
 		os.Exit(1)
 	}
 
 	javaHome, err := readJavaHome(os.Args[1])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Invalid Java version.\n")
+		fmt.Fprintln(os.Stderr, "Invalid Java version.")
 		os.Exit(1)
 	}
 
-	exitCode, err := runProcess(javaHome, os.Args[2:])
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to start process.\n")
+	if err := runProcess(javaHome, os.Args[2:]); err != nil {
+		fmt.Fprintln(os.Stderr, "Unable to start process.")
 		os.Exit(1)
 	}
 
-	os.Exit(exitCode)
+	fmt.Fprintln(os.Stderr, "Invalid process state.")
+	os.Exit(1)
 }
 
 func normalizeJavaVersion(version string) string {
@@ -66,33 +67,21 @@ func readJavaHome(version string) (string, error) {
 	return strings.TrimSpace(string(data)), nil
 }
 
-func runProcess(javaHome string, commandLine []string) (int, error) {
-	cmd := exec.Command(processName(commandLine), processArgs(commandLine)...)
-
-	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("JAVA_HOME=%s", javaHome))
-
-	cmd.Stdout = os.Stdout
-	cmd.Stdin = os.Stdin
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return 0, err
+func runProcess(javaHome string, commandLine []string) error {
+	command, err := exec.LookPath(commandName(commandLine))
+	if err != nil {
+		return err
 	}
 
-	return cmd.ProcessState.ExitCode(), nil
+	env := os.Environ()
+	env = append(env, fmt.Sprintf("JAVA_HOME=%s", javaHome))
+
+	return syscall.Exec(command, commandLine, env)
 }
 
-func processName(commandLine []string) string {
+func commandName(commandLine []string) string {
 	if len(commandLine) < 1 {
 		panic("invalid command line")
 	}
 	return commandLine[0]
-}
-
-func processArgs(commandLine []string) []string {
-	if len(commandLine) < 2 {
-		return nil
-	}
-	return commandLine[1:]
 }
